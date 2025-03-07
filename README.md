@@ -1,6 +1,6 @@
 # QUOTIFY - Modern Inspirational Quotes Application
 
-A quote generater application built with React and TypeScript. This project demonstrates the implementation of a modern interface for discovering and saving inspirational quotes with a focus on user experience and clean design.
+A quote generator application built with React and TypeScript. This project demonstrates the implementation of a modern interface for discovering and saving inspirational quotes with a focus on user experience and clean design.
 
 ## Project Overview
 
@@ -9,19 +9,19 @@ Quotify is developed to showcase inspirational quotes in an elegant and user-fri
 ## Screenshots
 
 ### Main Interface
-![Main Interface](/Screenshots/Screenshot%202025-03-07%20at%205.08.03%20PM.png)
+![Main Interface](./Screenshots/Screenshot%202025-03-07%20at%205.08.03%20PM.png)
 *Modern interface with elegant quote display and interactive elements*
 
 ### Quote Display
-![Quote Display](/Screenshots/Screenshot%202025-03-07%20at%205.08.13%20PM.png)
+![Quote Display](./Screenshots/Screenshot%202025-03-07%20at%205.08.13%20PM.png)
 *Clean quote presentation with author attribution*
 
 ### Favorites View
-![Favorites View](/Screenshots/Screenshot%202025-03-07%20at%205.08.21%20PM.png)
+![Favorites View](./Screenshots/Screenshot%202025-03-07%20at%205.08.21%20PM.png)
 *Saved favorite quotes for easy access*
 
 ### Share Options
-![Share Options](/Screenshots/Screenshot%202025-03-07%20at%205.08.27%20PM.png)
+![Share Options](./Screenshots/Screenshot%202025-03-07%20at%205.08.27%20PM.png)
 *Convenient sharing functionality for social media*
 
 ## Core Features
