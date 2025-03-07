@@ -1,12 +1,8 @@
-import { useState, useEffect } from 'react'
-import { FaHeart, FaRegHeart, FaQuoteLeft, FaQuoteRight, FaArrowLeft } from 'react-icons/fa'
+import { useState, useEffect, useRef } from 'react'
+import { FaHeart, FaRegHeart, FaQuoteLeft, FaQuoteRight, FaArrowLeft, FaShare, FaCheck, FaTwitter } from 'react-icons/fa'
 import './App.css'
-
-interface Quote {
-  text: string;
-  author: string;
-  isFavorite: boolean;
-}
+import { Quote } from './types'
+import quotesService from './services/quotesService'
 
 function App() {
   const [quote, setQuote] = useState<Quote>({
@@ -18,19 +14,60 @@ function App() {
   const [favorites, setFavorites] = useState<Quote[]>([]);
   const [showFavorites, setShowFavorites] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showShareOptions, setShowShareOptions] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [quoteSource, setQuoteSource] = useState<'api' | 'local' | null>(null);
+  const shareOptionsRef = useRef<HTMLDivElement>(null);
 
   // Load favorites from localStorage on initial render
   useEffect(() => {
     const savedFavorites = localStorage.getItem('quotify-favorites');
     if (savedFavorites) {
-      setFavorites(JSON.parse(savedFavorites));
+      try {
+        setFavorites(JSON.parse(savedFavorites));
+      } catch (err) {
+        console.error('Error parsing saved favorites:', err);
+        // Reset favorites if there's an error
+        localStorage.removeItem('quotify-favorites');
+        setFavorites([]);
+      }
     }
+    
+    // Fetch a quote when the app loads
+    getNewQuote().catch(err => {
+      console.error('Error in initial quote fetch:', err);
+    });
   }, []);
 
   // Save favorites to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem('quotify-favorites', JSON.stringify(favorites));
   }, [favorites]);
+
+  // Close share options when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (shareOptionsRef.current && !shareOptionsRef.current.contains(event.target as Node)) {
+        setShowShareOptions(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Reset copied state after 2 seconds
+  useEffect(() => {
+    if (copied) {
+      const timer = setTimeout(() => {
+        setCopied(false);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [copied]);
 
   const toggleFavorite = () => {
     if (quote.isFavorite) {
@@ -41,27 +78,53 @@ function App() {
     setQuote({...quote, isFavorite: !quote.isFavorite});
   };
 
-  const getNewQuote = () => {
-    // This will be replaced with API call later
-    // For now, just a placeholder with loading state
+  const getNewQuote = async () => {
     setIsLoading(true);
+    setError(null);
     
-    setTimeout(() => {
-      const dummyQuotes = [
-        { text: "The only limit to our realization of tomorrow is our doubts of today.", author: "Franklin D. Roosevelt" },
-        { text: "Life is what happens when you're busy making other plans.", author: "John Lennon" },
-        { text: "The future belongs to those who believe in the beauty of their dreams.", author: "Eleanor Roosevelt" },
-        { text: "In the end, we will remember not the words of our enemies, but the silence of our friends.", author: "Martin Luther King Jr." },
-        { text: "Success is not final, failure is not fatal: It is the courage to continue that counts.", author: "Winston Churchill" },
-        { text: "The greatest glory in living lies not in never falling, but in rising every time we fall.", author: "Nelson Mandela" }
-      ];
+    try {
+      // Use our quotes service to get a quote
+      const result = await quotesService.getQuote();
       
-      const randomQuote = dummyQuotes[Math.floor(Math.random() * dummyQuotes.length)];
-      const isFavorite = favorites.some(fav => fav.text === randomQuote.text);
+      // Check if this quote is in favorites
+      const isFavorite = favorites.some(fav => fav.text === result.quote.text);
       
-      setQuote({...randomQuote, isFavorite});
+      setQuote({
+        ...result.quote,
+        isFavorite
+      });
+      
+      setQuoteSource(result.source);
+      
+      // If we got a local quote due to API error, show a message
+      if (result.source === 'local' && result.error) {
+        setError(result.error);
+      }
+    } catch (err) {
+      console.error('Error in getNewQuote:', err);
+      setError('Failed to fetch quote. Please try again.');
+    } finally {
       setIsLoading(false);
-    }, 600); // Simulate API delay
+    }
+  };
+
+  const copyToClipboard = () => {
+    const textToCopy = `"${quote.text}" - ${quote.author}`;
+    navigator.clipboard.writeText(textToCopy)
+      .then(() => {
+        setCopied(true);
+        setShowShareOptions(false);
+      })
+      .catch(err => {
+        console.error('Failed to copy: ', err);
+      });
+  };
+
+  const shareOnTwitter = () => {
+    const text = encodeURIComponent(`"${quote.text}" - ${quote.author}`);
+    const url = `https://twitter.com/intent/tweet?text=${text}&hashtags=quotify,inspiration`;
+    window.open(url, '_blank');
+    setShowShareOptions(false);
   };
 
   return (
@@ -79,16 +142,62 @@ function App() {
           
           <div className="quote-header">
             <h2>QUOTE.</h2>
-            <div className="favorite-icon" onClick={toggleFavorite}>
-              {quote.isFavorite ? <FaHeart color="#4ecdc4" /> : <FaRegHeart color="#4ecdc4" />}
+            <div className="header-actions">
+              <div className="share-container">
+                <div 
+                  className={`action-icon ${copied ? 'copied' : ''}`} 
+                  onClick={() => setShowShareOptions(!showShareOptions)}
+                >
+                  {copied ? <FaCheck color="#4ecdc4" /> : <FaShare color="#4ecdc4" />}
+                </div>
+                
+                {showShareOptions && (
+                  <div className="share-options" ref={shareOptionsRef}>
+                    <div className="share-option" onClick={copyToClipboard}>
+                      Copy to clipboard
+                    </div>
+                    <div className="share-option" onClick={shareOnTwitter}>
+                      <FaTwitter /> Share on Twitter
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className="favorite-icon" onClick={toggleFavorite}>
+                {quote.isFavorite ? <FaHeart color="#4ecdc4" /> : <FaRegHeart color="#4ecdc4" />}
+              </div>
             </div>
           </div>
           
           <div className="quote-content">
-            <div className="quote-marks"><FaQuoteLeft /></div>
-            <p className="quote-text">{isLoading ? "Loading..." : quote.text}</p>
-            <div className="quote-author">{isLoading ? "" : quote.author}</div>
-            <div className="quote-marks closing-marks"><FaQuoteRight /></div>
+            {error ? (
+              <>
+                <p className="quote-text error">{error}</p>
+                {quoteSource === 'local' && (
+                  <div className="retry-container">
+                    <button 
+                      className="retry-button"
+                      onClick={getNewQuote}
+                      disabled={isLoading}
+                    >
+                      Retry API
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="quote-text-container">
+                  <div className="quote-marks opening-marks"><FaQuoteLeft /></div>
+                  <p className="quote-text">{isLoading ? "Loading..." : quote.text}</p>
+                  <div className="quote-marks closing-marks"><FaQuoteRight /></div>
+                </div>
+                <div className="quote-author">{isLoading ? "" : quote.author}</div>
+                {quoteSource === 'local' && !error && (
+                  <div className="quote-source">Using local quote database</div>
+                )}
+              </>
+            )}
           </div>
           
           <div className="quote-actions">
