@@ -9,24 +9,24 @@ Quotify is developed to showcase inspirational quotes in an elegant and user-fri
 ## Screenshots
 
 ### Main Interface
-![Main Interface](Screenshots/img1.png)
+![Main Interface](Screenshots/interface.png)
 
 *Modern interface with elegant quote display and interactive elements*
 
-### Quote Display
-![Quote Display](Screenshots/img2.png)
-
-*Clean quote presentation with author attribution*
-
 ### Favorites View
-![Favorites View](Screenshots/img3.png)
+![Favorites View](Screenshots/view_favourite.png)
 
 *Saved favorite quotes for easy access*
 
 ### Share Options
-![Share Options](Screenshots/img4.png)
+![Share Options](Screenshots/share.png)
 
 *Convenient sharing functionality for social media*
+
+### Keyboard Shortcuts
+![Keyboard Shortcuts](Screenshots/keyboard_shortcut.png)
+
+*Convenient keyboard shortcuts for power users*
 
 ## Core Features
 
