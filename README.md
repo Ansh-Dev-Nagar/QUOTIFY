@@ -16,7 +16,7 @@ Quotify is developed to showcase inspirational quotes in an elegant and user-fri
 ### Favorites View
 ![Favorites View](Screenshots/view_favourite.png)
 
-*Saved favorite quotes for easy access*
+*Saved favorite quotes for easy access with the ability to remove individual quotes*
 
 ### Share Options
 ![Share Options](Screenshots/share.png)
@@ -38,6 +38,7 @@ Quotify is developed to showcase inspirational quotes in an elegant and user-fri
 ### Current Implementation
 * Quote retrieval from multiple API sources with fallback mechanisms
 * **Persistent Storage**: Local storage for saving favorite quotes across sessions
+* **Favorites Management**: Add quotes to favorites and remove them individually as needed
 * **Offline Support**: Automatic detection of network status with seamless fallback to local quotes
 * Responsive design with modern gradient UI elements
 * Share quotes via clipboard or Twitter
