@@ -14,6 +14,23 @@ const localQuotes = [
   { text: "When you reach the end of your rope, tie a knot in it and hang on.", author: "Franklin D. Roosevelt" }
 ];
 
+// Keep track of offline status to avoid repeated checks
+let isOfflineMode = false;
+
+/**
+ * Check if the device is offline - aggressive check that defaults to offline if there's any doubt
+ */
+const checkIfOffline = (): boolean => {
+  // Always check navigator.onLine first - it's the most reliable indicator
+  if (!navigator.onLine) {
+    isOfflineMode = true;
+    return true;
+  }
+  
+  // If we previously detected offline mode, keep using that unless explicitly reset
+  return isOfflineMode;
+};
+
 /**
  * Get a random quote from the local collection
  */
@@ -31,41 +48,99 @@ export const getRandomLocalQuote = (): Quote => {
  * Fetch a quote from an API
  */
 export const fetchQuoteFromAPI = async (): Promise<Quote> => {
-  // Using a simple, reliable API endpoint
-  const response = await fetch('https://dummyjson.com/quotes/random');
-  
-  if (!response.ok) {
-    throw new Error(`API error: ${response.status}`);
+  // First check if we're offline - if so, fail fast
+  if (checkIfOffline()) {
+    throw new Error('You are offline. Using local quotes.');
   }
-  
-  const data = await response.json();
-  
-  return {
-    text: data.quote,
-    author: data.author,
-    isFavorite: false
-  };
+
+  try {
+    // Using a simple, reliable API endpoint with a very short timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1500); // 1.5 second timeout - much faster
+    
+    const response = await fetch('https://dummyjson.com/quotes/random', {
+      signal: controller.signal,
+      // Add cache control to prevent stale responses
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      }
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Reset offline mode if we successfully got a response
+    isOfflineMode = false;
+    
+    return {
+      text: data.quote,
+      author: data.author,
+      isFavorite: false
+    };
+  } catch (err) {
+    // If we get a network error, set offline mode
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      isOfflineMode = true;
+    }
+    
+    // If we get a timeout, set offline mode
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      isOfflineMode = true;
+      throw new Error('Request timed out. Using local quotes.');
+    } else if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error('Network error. Using local quotes.');
+    } else {
+      // Re-throw the original error or a wrapped version
+      throw err;
+    }
+  }
 };
 
 /**
  * Get a quote - tries API first, falls back to local if API fails
  */
 export const getQuote = async (): Promise<{ quote: Quote; source: 'api' | 'local'; error?: string }> => {
+  // If we're in offline mode, immediately return a local quote without trying API
+  if (checkIfOffline()) {
+    return { 
+      quote: getRandomLocalQuote(), 
+      source: 'local',
+      error: 'You are offline. Using local quotes.'
+    };
+  }
+  
   try {
     const quote = await fetchQuoteFromAPI();
     return { quote, source: 'api' };
   } catch (err) {
     console.error('API failed, using local quote:', err);
+    
+    // Get a random local quote
+    const localQuote = getRandomLocalQuote();
+    
+    // Return the local quote with appropriate error message
     return { 
-      quote: getRandomLocalQuote(), 
+      quote: localQuote, 
       source: 'local',
-      error: err instanceof Error ? err.message : 'Failed to fetch from API'
+      error: err instanceof Error ? err.message : 'Failed to fetch from API. Using local quotes.'
     };
   }
+};
+
+// Export a function to manually set offline mode
+export const setOfflineMode = (offline: boolean): void => {
+  isOfflineMode = offline;
 };
 
 export default {
   getRandomLocalQuote,
   fetchQuoteFromAPI,
-  getQuote
+  getQuote,
+  setOfflineMode
 }; 

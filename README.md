@@ -28,11 +28,17 @@ Quotify is developed to showcase inspirational quotes in an elegant and user-fri
 
 *Convenient keyboard shortcuts for power users*
 
+### Offline Mode
+![Offline Mode](Screenshots/offline_mode.png)
+
+*Seamless offline experience with local quotes database*
+
 ## Core Features
 
 ### Current Implementation
 * Quote retrieval from multiple API sources with fallback mechanisms
-* Local storage for saving favorite quotes
+* **Persistent Storage**: Local storage for saving favorite quotes across sessions
+* **Offline Support**: Automatic detection of network status with seamless fallback to local quotes
 * Responsive design with modern gradient UI elements
 * Share quotes via clipboard or Twitter
 * Keyboard shortcuts for desktop users
@@ -56,7 +62,7 @@ Quotify is developed to showcase inspirational quotes in an elegant and user-fri
 * Quotes API: Multiple sources with fallback
 * Styling: Custom CSS with modern design principles
 * TypeScript: For type safety and better developer experience
-* Local Storage: For persistent favorites
+* Local Storage: For persistent favorites and app state
 
 ## Setup Guide
 
@@ -80,6 +86,9 @@ npm run dev
 
 ### API Configuration
 The application uses multiple quote APIs with a robust fallback mechanism to ensure quotes are always available, even when offline.
+
+### Offline Functionality
+The app detects network status changes and automatically switches between online and offline modes. In offline mode, it uses a curated collection of quotes stored locally, ensuring a seamless user experience regardless of connectivity.
 
 ### Best Practices
 * Follow TypeScript best practices

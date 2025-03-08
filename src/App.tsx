@@ -106,6 +106,50 @@ function App() {
     };
   }, [handleKeyDown]);
 
+  // Add network status listener
+  useEffect(() => {
+    const handleOnline = () => {
+      // When we come back online, clear any offline error messages
+      if (error && error.includes('offline')) {
+        setError(null);
+      }
+      // Reset offline mode in the service
+      quotesService.setOfflineMode(false);
+      // Optionally fetch a new quote when coming back online
+      getNewQuote().catch(console.error);
+    };
+
+    const handleOffline = () => {
+      // When we go offline, show a message
+      setError('You are offline. Using local quotes.');
+      setQuoteSource('local');
+      // Set offline mode in the service
+      quotesService.setOfflineMode(true);
+      
+      // Only set a new local quote if we don't already have one
+      if (!quote.text || quoteSource === 'api') {
+        const localQuote = quotesService.getRandomLocalQuote();
+        setQuote({
+          ...localQuote,
+          isFavorite: favorites.some(fav => fav.text === localQuote.text)
+        });
+      }
+    };
+
+    // Check initial network status
+    if (!navigator.onLine) {
+      handleOffline();
+    }
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [error, favorites]); // Include error and favorites in dependencies
+
   const toggleFavorite = () => {
     if (quote.isFavorite) {
       setFavorites(favorites.filter(fav => fav.text !== quote.text));
@@ -118,6 +162,19 @@ function App() {
   const getNewQuote = async () => {
     setIsLoading(true);
     setError(null);
+    
+    // If we're offline, immediately show a local quote without API call
+    if (!navigator.onLine) {
+      const localQuote = quotesService.getRandomLocalQuote();
+      setQuote({
+        ...localQuote,
+        isFavorite: favorites.some(fav => fav.text === localQuote.text)
+      });
+      setQuoteSource('local');
+      setError('You are offline. Using local quotes.');
+      setIsLoading(false);
+      return;
+    }
     
     try {
       // Use our quotes service to get a quote
@@ -136,10 +193,38 @@ function App() {
       // If we got a local quote due to API error, show a message
       if (result.source === 'local' && result.error) {
         setError(result.error);
+        
+        // For offline errors, keep the message visible for a short time
+        if (result.error.includes('offline')) {
+          setTimeout(() => {
+            if (error === result.error) { // Only clear if it's still the same error
+              setError(null);
+            }
+          }, 2000); // Shorter time for offline messages
+        } else {
+          // For other errors, clear after a longer time
+          setTimeout(() => {
+            if (error === result.error) { // Only clear if it's still the same error
+              setError(null);
+            }
+          }, 5000);
+        }
       }
     } catch (err) {
       console.error('Error in getNewQuote:', err);
-      setError('Failed to fetch quote. Please try again.');
+      
+      // Try to get a local quote directly as a last resort
+      try {
+        const localQuote = quotesService.getRandomLocalQuote();
+        setQuote({
+          ...localQuote,
+          isFavorite: favorites.some(fav => fav.text === localQuote.text)
+        });
+        setQuoteSource('local');
+        setError('Failed to fetch quote from API. Using local quotes.');
+      } catch (localErr) {
+        setError('Failed to fetch any quotes. Please try again later.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -208,34 +293,30 @@ function App() {
           </div>
           
           <div className="quote-content">
-            {error ? (
-              <>
-                <p className="quote-text error">{error}</p>
-                {quoteSource === 'local' && (
-                  <div className="retry-container">
-                    <button 
-                      className="retry-button"
-                      onClick={getNewQuote}
-                      disabled={isLoading}
-                    >
-                      Retry API
-                    </button>
-                  </div>
-                )}
-              </>
-            ) : (
-              <>
-                <div className="quote-text-container">
-                  <div className="quote-marks opening-marks"><FaQuoteLeft /></div>
-                  <p className="quote-text">{isLoading ? "Loading..." : quote.text}</p>
-                  <div className="quote-marks closing-marks"><FaQuoteRight /></div>
-                </div>
-                <div className="quote-author">{isLoading ? "" : quote.author}</div>
-                {quoteSource === 'local' && !error && (
-                  <div className="quote-source">Using local quote database</div>
-                )}
-              </>
+            <div className="quote-marks opening-marks"><FaQuoteLeft /></div>
+            <p className="quote-text">{isLoading ? "Loading..." : quote.text}</p>
+            <div className="quote-author">{isLoading ? "" : quote.author}</div>
+            
+            {error && (
+              <p className={`quote-notification ${error.includes('offline') ? 'offline-notice' : error.includes('Using local quotes') ? 'local-fallback' : 'error'}`}>{error}</p>
             )}
+            
+            {quoteSource === 'local' && !error && (
+              <div className="quote-source">Using local quote database</div>
+            )}
+            
+            {quoteSource === 'local' && error && !error.includes('offline') && (
+              <div className="retry-container">
+                <button 
+                  className="retry-button"
+                  onClick={getNewQuote}
+                  disabled={isLoading || !navigator.onLine}
+                >
+                  Retry API
+                </button>
+              </div>
+            )}
+            <div className="quote-marks closing-marks"><FaQuoteRight /></div>
           </div>
           
           <div className="quote-actions">

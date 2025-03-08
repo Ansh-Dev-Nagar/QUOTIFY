@@ -131,9 +131,9 @@ body {
   color: var(--light-text);
   position: relative;
   background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  text-shadow: 0 2px 10px rgba(78, 205, 196, 0.3);
 }
 
 .quote-header h2::after {
@@ -409,7 +409,6 @@ body {
   z-index: 10;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  animation: fadeIn 0.2s ease-out;
   transform-origin: top right;
   animation: scaleIn 0.2s ease-out;
 }
@@ -452,19 +451,41 @@ body {
   transform: translateX(-50%);
 }
 
-/* Error state */
-.quote-text.error {
-  color: #ff9e80;
-  font-size: 1.1rem;
+/* Quote notification - base styles for all notifications */
+.quote-notification {
+  font-size: 0.9rem;
   text-align: center;
-  padding: 1.5rem;
-  background-color: rgba(255, 107, 107, 0.1);
-  border-radius: 10px;
-  margin: 1.5rem 0;
-  border-left: 3px solid #ff6b6b;
+  padding: 0.5rem;
+  border-radius: 6px;
+  margin: 0.5rem 0;
+  border-left-width: 3px;
+  border-left-style: solid;
   animation: fadeIn 0.3s ease-out;
-  line-height: 1.5;
-  font-weight: 400;
+  width: 100%;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Error state */
+.quote-notification.error {
+  color: #ff9e80;
+  background-color: rgba(255, 107, 107, 0.1);
+  border-left-color: #ff6b6b;
+}
+
+/* Local quote notification - less alarming than error */
+.quote-notification.local-fallback {
+  color: #ffbe0b;
+  background-color: rgba(255, 190, 11, 0.1);
+  border-left-color: #ffbe0b;
+}
+
+/* Offline notification - informative, not alarming */
+.quote-notification.offline-notice {
+  color: #4ecdc4;
+  background-color: rgba(78, 205, 196, 0.1);
+  border-left-color: #4ecdc4;
 }
 
 /* Retry button */
@@ -610,13 +631,14 @@ body {
 }
 
 .favorites-container h2 {
+  position: relative;
   font-size: 2rem;
   margin-bottom: 0.5rem;
   color: var(--light-text);
   background: linear-gradient(to right, var(--light-text), rgba(255, 255, 255, 0.7));
+  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  position: relative;
 }
 
 .favorites-container h2::after {
