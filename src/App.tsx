@@ -4,6 +4,39 @@ import './App.css'
 import { Quote } from './types'
 import quotesService from './services/quotesService'
 
+// Constants for localStorage
+const STORAGE_KEY = 'QUOTIFY_FAVORITES_V2';
+
+// Direct localStorage functions
+const getFavoritesFromStorage = (): Quote[] => {
+  try {
+    const storedData = window.localStorage.getItem(STORAGE_KEY);
+    if (storedData) {
+      const parsed = JSON.parse(storedData);
+      if (Array.isArray(parsed)) {
+        console.log('Retrieved favorites from storage:', parsed);
+        return parsed;
+      }
+    }
+    return [];
+  } catch (err) {
+    console.error('Error getting favorites from storage:', err);
+    return [];
+  }
+};
+
+const saveFavoritesToStorage = (favorites: Quote[]): boolean => {
+  try {
+    const jsonData = JSON.stringify(favorites);
+    window.localStorage.setItem(STORAGE_KEY, jsonData);
+    console.log('Saved favorites to storage:', favorites);
+    return true;
+  } catch (err) {
+    console.error('Error saving favorites to storage:', err);
+    return false;
+  }
+};
+
 function App() {
   const [quote, setQuote] = useState<Quote>({
     text: "Ask not what your country can do for you; ask what you can do for your country.",
@@ -11,7 +44,12 @@ function App() {
     isFavorite: false
   });
   
-  const [favorites, setFavorites] = useState<Quote[]>([]);
+  // Initialize favorites from localStorage directly
+  const [favorites, setFavorites] = useState<Quote[]>(() => {
+    const storedFavorites = getFavoritesFromStorage();
+    return storedFavorites;
+  });
+  
   const [showFavorites, setShowFavorites] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,18 +59,18 @@ function App() {
   const [showKeyboardHints, setShowKeyboardHints] = useState(false);
   const shareOptionsRef = useRef<HTMLDivElement>(null);
 
-  // Load favorites from localStorage on initial render
+  // Initialize app
   useEffect(() => {
-    const savedFavorites = localStorage.getItem('quotify-favorites');
-    if (savedFavorites) {
-      try {
-        setFavorites(JSON.parse(savedFavorites));
-      } catch (err) {
-        console.error('Error parsing saved favorites:', err);
-        // Reset favorites if there's an error
-        localStorage.removeItem('quotify-favorites');
-        setFavorites([]);
-      }
+    // Check if current quote is in favorites
+    const storedFavorites = getFavoritesFromStorage();
+    const isFavorite = storedFavorites.some(fav => fav.text === quote.text);
+    
+    // Update current quote's favorite status
+    if (isFavorite !== quote.isFavorite) {
+      setQuote(currentQuote => ({
+        ...currentQuote,
+        isFavorite
+      }));
     }
     
     // Fetch a quote when the app loads
@@ -43,7 +81,7 @@ function App() {
 
   // Save favorites to localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem('quotify-favorites', JSON.stringify(favorites));
+    saveFavoritesToStorage(favorites);
   }, [favorites]);
 
   // Close share options when clicking outside
@@ -151,12 +189,38 @@ function App() {
   }, [error, favorites]); // Include error and favorites in dependencies
 
   const toggleFavorite = () => {
-    if (quote.isFavorite) {
-      setFavorites(favorites.filter(fav => fav.text !== quote.text));
-    } else {
-      setFavorites([...favorites, {...quote, isFavorite: true}]);
+    try {
+      let updatedFavorites;
+      
+      if (quote.isFavorite) {
+        // Remove from favorites
+        updatedFavorites = favorites.filter(fav => fav.text !== quote.text);
+        console.log('Removing from favorites. New favorites array:', updatedFavorites);
+      } else {
+        // Add to favorites
+        const favoriteQuote = {...quote, isFavorite: true};
+        updatedFavorites = [...favorites, favoriteQuote];
+        console.log('Adding to favorites. New favorites array:', updatedFavorites);
+      }
+      
+      // Update state
+      setFavorites(updatedFavorites);
+      
+      // Update current quote's isFavorite status
+      setQuote({...quote, isFavorite: !quote.isFavorite});
+      
+      // Explicitly save to localStorage immediately
+      const saved = saveFavoritesToStorage(updatedFavorites);
+      if (saved) {
+        // Show temporary success message
+        setError(quote.isFavorite ? 'Removed from favorites!' : 'Added to favorites!');
+        setTimeout(() => {
+          setError(null);
+        }, 2000);
+      }
+    } catch (err) {
+      console.error('Error in toggleFavorite:', err);
     }
-    setQuote({...quote, isFavorite: !quote.isFavorite});
   };
 
   const getNewQuote = async () => {
@@ -166,9 +230,12 @@ function App() {
     // If we're offline, immediately show a local quote without API call
     if (!navigator.onLine) {
       const localQuote = quotesService.getRandomLocalQuote();
+      // Check if this quote is in favorites
+      const isFavorite = favorites.some(fav => fav.text === localQuote.text);
+      
       setQuote({
         ...localQuote,
-        isFavorite: favorites.some(fav => fav.text === localQuote.text)
+        isFavorite
       });
       setQuoteSource('local');
       setError('You are offline. Using local quotes.');
@@ -216,9 +283,12 @@ function App() {
       // Try to get a local quote directly as a last resort
       try {
         const localQuote = quotesService.getRandomLocalQuote();
+        // Check if this quote is in favorites
+        const isFavorite = favorites.some(fav => fav.text === localQuote.text);
+        
         setQuote({
           ...localQuote,
-          isFavorite: favorites.some(fav => fav.text === localQuote.text)
+          isFavorite
         });
         setQuoteSource('local');
         setError('Failed to fetch quote from API. Using local quotes.');
@@ -247,6 +317,72 @@ function App() {
     const url = `https://twitter.com/intent/tweet?text=${text}&hashtags=quotify,inspiration`;
     window.open(url, '_blank');
     setShowShareOptions(false);
+  };
+
+  // Function to check if localStorage is working properly
+  const isLocalStorageWorking = (): boolean => {
+    try {
+      const testKey = 'quotify-storage-test';
+      const testValue = 'test-' + Date.now();
+      
+      // Try to write to localStorage
+      window.localStorage.setItem(testKey, testValue);
+      
+      // Try to read from localStorage
+      const readValue = window.localStorage.getItem(testKey);
+      
+      // Clean up
+      window.localStorage.removeItem(testKey);
+      
+      // Check if the value was correctly stored and retrieved
+      return readValue === testValue;
+    } catch (err) {
+      console.error('localStorage test failed:', err);
+      return false;
+    }
+  };
+
+  // Check localStorage on mount
+  useEffect(() => {
+    const storageWorking = isLocalStorageWorking();
+    console.log('localStorage is working:', storageWorking);
+    
+    if (!storageWorking) {
+      setError('Warning: Local storage is not working. Favorites will not be saved between sessions.');
+    }
+  }, []);
+
+  // Function to remove a specific favorite
+  const removeFavorite = (quoteToRemove: Quote) => {
+    try {
+      console.log('Removing favorite:', quoteToRemove);
+      
+      // Filter out the quote to remove
+      const updatedFavorites = favorites.filter(fav => fav.text !== quoteToRemove.text);
+      console.log('Updated favorites after removal:', updatedFavorites);
+      
+      // Update state
+      setFavorites(updatedFavorites);
+      
+      // If the current quote is the one being removed, update its isFavorite status
+      if (quote.text === quoteToRemove.text) {
+        setQuote({...quote, isFavorite: false});
+      }
+      
+      // Save to localStorage
+      saveFavoritesToStorage(updatedFavorites);
+      
+      // Show success message
+      setError('Quote removed from favorites!');
+      setTimeout(() => {
+        setError(null);
+      }, 2000);
+      
+      return true;
+    } catch (err) {
+      console.error('Error removing favorite:', err);
+      return false;
+    }
   };
 
   return (
@@ -298,7 +434,20 @@ function App() {
             <div className="quote-author">{isLoading ? "" : quote.author}</div>
             
             {error && (
-              <p className={`quote-notification ${error.includes('offline') ? 'offline-notice' : error.includes('Using local quotes') ? 'local-fallback' : 'error'}`}>{error}</p>
+              <p className={`quote-notification ${
+                error.includes('offline') 
+                  ? 'offline-notice' 
+                  : error.includes('Using local quotes') 
+                    ? 'local-fallback' 
+                    : error.includes('saved successfully') || 
+                      error.includes('Added to favorites') || 
+                      error.includes('Removed from favorites') || 
+                      error.includes('Quote removed from favorites') || 
+                      error.includes('reloaded') || 
+                      error.includes('cleared successfully')
+                        ? 'success'
+                        : 'error'
+              }`}>{error}</p>
             )}
             
             {quoteSource === 'local' && !error && (
@@ -370,18 +519,27 @@ function App() {
       ) : (
         <div className="favorites-container">
           <div className="favorites-header">
-            <h2>Your Favorite Quotes</h2>
+            <h2>Your Favorite Quotes ({favorites.length})</h2>
             <button className="back-btn-small" onClick={() => setShowFavorites(false)}>
               <FaArrowLeft />
             </button>
           </div>
           
-          {favorites.length > 0 ? (
+          {favorites && favorites.length > 0 ? (
             <div className="favorites-list">
               {favorites.map((fav, index) => (
-                <div key={index} className="favorite-item">
-                  <p>"{fav.text}"</p>
-                  <small>- {fav.author}</small>
+                <div key={`fav-${index}-${fav.text.substring(0, 10)}`} className="favorite-item">
+                  <div className="favorite-content">
+                    <p>"{fav.text}"</p>
+                    <small>- {fav.author}</small>
+                  </div>
+                  <button 
+                    className="remove-favorite-btn" 
+                    onClick={() => removeFavorite(fav)}
+                    title="Remove from favorites"
+                  >
+                    ×
+                  </button>
                 </div>
               ))}
             </div>
