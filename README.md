@@ -111,4 +111,4 @@ For inquiries or collaboration opportunities, please reach out through:
 anshdevnagar@gmail.com
 
 ---
-Developed by Ansh Dev Nagarr
+Developed by Ansh Dev Nagar
